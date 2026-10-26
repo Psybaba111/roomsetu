@@ -3,6 +3,7 @@ import { getSql, type Sql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { matchScore, type SeekerPrefs } from "@/lib/roomsetu/match";
 import { isAllowedPhotoUrl } from "@/lib/roomsetu/storage";
+import { parseFacts, type PropertyFacts } from "@/lib/roomsetu/catalog";
 import { planById, type PlanId } from "@/lib/roomsetu/payments";
 import { rowsOf } from "@/lib/roomsetu/plain";
 
@@ -142,6 +143,8 @@ type ListingWrite = {
   guestPolicy: string;
   amenities: string[];
   photos: { url: string; category: string }[];
+  listingKind: "room" | "entire";
+  facts: PropertyFacts;
 };
 
 function parseListing(input: unknown): ListingWrite {
@@ -159,11 +162,14 @@ function parseListing(input: unknown): ListingWrite {
         .slice(0, 8)
     : [];
   const available = str(o.availableFrom, 10);
+  const listingKind = o.listingKind === "entire" ? "entire" : "room";
+  let roomType = str(o.roomType, 20) || (listingKind === "entire" ? "2bhk" : "private");
+  if (listingKind === "entire" && !["studio", "1bhk", "2bhk", "3bhk", "4bhk"].includes(roomType)) roomType = "2bhk";
   return {
     id: str(o.id, 80),
     title: str(o.title, 120),
     propertyType: str(o.propertyType, 40) || "apartment",
-    roomType: str(o.roomType, 20) || "private",
+    roomType,
     address: str(o.address, 200),
     cityId: str(o.cityId, 40),
     localityId: str(o.localityId, 80),
@@ -185,6 +191,8 @@ function parseListing(input: unknown): ListingWrite {
     guestPolicy: str(o.guestPolicy, 160) || "Occasional guests with notice",
     amenities,
     photos,
+    listingKind,
+    facts: parseFacts(o.facts),
   };
 }
 
@@ -200,6 +208,11 @@ const FLAG: Record<string, string> = {
   attached_bath: "attached_bath",
   balcony: "balcony",
   food: "food",
+  security: "security",
+  gas: "gas",
+  gym: "gym",
+  club: "club",
+  park: "park",
 };
 
 function quality(data: ListingWrite, verified: boolean) {
@@ -210,6 +223,7 @@ function quality(data: ListingWrite, verified: boolean) {
   if (data.amenities.length >= 4) score += 10;
   if (data.houseRules.length > 10) score += 6;
   if (data.address) score += 4;
+  if (data.listingKind === "entire" && data.facts.builtUpSqft && data.facts.society) score += 6;
   if (verified) score += 10;
   return Math.min(98, score);
 }
@@ -238,8 +252,9 @@ export const saveListing = createServerFn({ method: "POST" })
       if (!owned[0]) throw new Error("Listing not found.");
     }
     const has = (key: string) => data.amenities.includes(key);
-    const cover = data.photos[0]?.url || "/rooms/bedroom.jpg";
+    const cover = data.photos[0]?.url || (data.listingKind === "entire" ? "/rooms/living.jpg" : "/rooms/bedroom.jpg");
     const score = quality(data, profile.verificationStatus === "verified");
+    const factsJson = JSON.stringify(data.listingKind === "entire" ? data.facts : { postedBy: "owner" });
     if (!data.id) {
       const propId = crypto.randomUUID();
       await sql`insert into properties (id, owner_id, title, property_type, city_id, locality_id, address, is_demo)
@@ -249,14 +264,14 @@ export const saveListing = createServerFn({ method: "POST" })
         lat, lng, monthly_rent, deposit, available_from, min_stay_months, max_stay_months, furnished, gender_pref,
         age_min, age_max, occupant_pref, roommate_pref, occupants, description, house_rules, guest_policy,
         food_available, smoking_allowed, pets_allowed, status, verification_status, quality_score, plan, featured,
-        cover_image, duplicate_suspect
+        listing_kind, property_facts, cover_image, duplicate_suspect
       ) values (
         ${id}, ${propId}, ${context.userId}, false, ${data.title}, ${data.propertyType}, ${data.roomType}, ${data.address},
         ${data.cityId}, ${data.localityId}, ${data.pincode}, ${place[0].lat}, ${place[0].lng}, ${data.monthlyRent}, ${data.deposit},
         ${data.availableFrom}, ${data.minStayMonths}, ${data.maxStayMonths}, ${data.furnished}, ${data.genderPref},
         ${data.ageMin}, ${data.ageMax}, ${data.occupantPref}, ${data.roommatePref}, ${data.occupants}, ${data.description},
         ${data.houseRules}, ${data.guestPolicy}, ${has("food")}, false, false, 'active', 'unverified', ${score}, 'free', false,
-        ${cover}, ${Boolean(dupes[0])}
+        ${data.listingKind}, ${factsJson}::jsonb, ${cover}, ${Boolean(dupes[0])}
       )`;
     } else {
       await sql`update listings set
@@ -268,6 +283,7 @@ export const saveListing = createServerFn({ method: "POST" })
         occupant_pref = ${data.occupantPref}, roommate_pref = ${data.roommatePref}, occupants = ${data.occupants},
         description = ${data.description}, house_rules = ${data.houseRules}, guest_policy = ${data.guestPolicy},
         food_available = ${has("food")}, quality_score = ${score}, cover_image = ${cover},
+        listing_kind = ${data.listingKind}, property_facts = ${factsJson}::jsonb,
         duplicate_suspect = ${Boolean(dupes[0])}, updated_at = now()
         where id = ${id} and owner_id = ${context.userId}`;
       await sql`delete from listing_amenities where listing_id = ${id}`;

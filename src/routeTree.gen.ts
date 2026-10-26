@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ApplicationsRouteImport } from './routes/applications'
 import { Route as BillingRouteImport } from './routes/billing'
+import { Route as BuddiesRouteImport } from './routes/buddies'
 import { Route as CreateListingRouteImport } from './routes/create-listing'
 import { Route as CreateRoomWantedRouteImport } from './routes/create-room-wanted'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -53,6 +54,11 @@ const ApplicationsRoute = ApplicationsRouteImport.update({
 const BillingRoute = BillingRouteImport.update({
   id: '/billing',
   path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BuddiesRoute = BuddiesRouteImport.update({
+  id: '/buddies',
+  path: '/buddies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateListingRoute = CreateListingRouteImport.update({
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/applications': typeof ApplicationsRoute
   '/billing': typeof BillingRoute
+  '/buddies': typeof BuddiesRoute
   '/create-listing': typeof CreateListingRoute
   '/create-room-wanted': typeof CreateRoomWantedRoute
   '/dashboard': typeof DashboardRoute
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/applications': typeof ApplicationsRoute
   '/billing': typeof BillingRoute
+  '/buddies': typeof BuddiesRoute
   '/create-listing': typeof CreateListingRoute
   '/create-room-wanted': typeof CreateRoomWantedRoute
   '/dashboard': typeof DashboardRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/applications': typeof ApplicationsRoute
   '/billing': typeof BillingRoute
+  '/buddies': typeof BuddiesRoute
   '/create-listing': typeof CreateListingRoute
   '/create-room-wanted': typeof CreateRoomWantedRoute
   '/dashboard': typeof DashboardRoute
@@ -250,6 +259,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/applications'
     | '/billing'
+    | '/buddies'
     | '/create-listing'
     | '/create-room-wanted'
     | '/dashboard'
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/applications'
     | '/billing'
+    | '/buddies'
     | '/create-listing'
     | '/create-room-wanted'
     | '/dashboard'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/applications'
     | '/billing'
+    | '/buddies'
     | '/create-listing'
     | '/create-room-wanted'
     | '/dashboard'
@@ -332,6 +344,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   ApplicationsRoute: typeof ApplicationsRoute
   BillingRoute: typeof BillingRoute
+  BuddiesRoute: typeof BuddiesRoute
   CreateListingRoute: typeof CreateListingRoute
   CreateRoomWantedRoute: typeof CreateRoomWantedRoute
   DashboardRoute: typeof DashboardRoute
@@ -377,6 +390,13 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/buddies': {
+      id: '/buddies'
+      path: '/buddies'
+      fullPath: '/buddies'
+      preLoaderRoute: typeof BuddiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create-listing': {
@@ -564,6 +584,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   ApplicationsRoute: ApplicationsRoute,
   BillingRoute: BillingRoute,
+  BuddiesRoute: BuddiesRoute,
   CreateListingRoute: CreateListingRoute,
   CreateRoomWantedRoute: CreateRoomWantedRoute,
   DashboardRoute: DashboardRoute,

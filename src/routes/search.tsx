@@ -20,6 +20,7 @@ type SearchParams = {
   moveIn?: string;
   lat?: string;
   lng?: string;
+  listingKind?: string;
 };
 
 function read(search: Record<string, unknown>): SearchParams {
@@ -40,6 +41,7 @@ function read(search: Record<string, unknown>): SearchParams {
     moveIn: pick("moveIn"),
     lat: pick("lat"),
     lng: pick("lng"),
+    listingKind: pick("listingKind"),
   };
 }
 
@@ -60,6 +62,7 @@ export const Route = createFileRoute("/search")({
       lat: deps.lat ? Number(deps.lat) : null,
       lng: deps.lng ? Number(deps.lng) : null,
       q: deps.q ?? "",
+      listingKind: deps.listingKind === "entire" || deps.listingKind === "room" ? deps.listingKind : "",
     };
     const [places, listings] = await Promise.all([listCities(), searchListings({ data: filters })]);
     return { places, listings, filters: deps };
@@ -95,7 +98,7 @@ function SearchPage() {
 
   return (
     <AppShell>
-      <h1 className="font-display text-4xl">Search rooms</h1>
+      <h1 className="font-display text-4xl">{filters.listingKind === "entire" ? "Entire flats" : "Search"}</h1>
       <p className="mt-1 text-sm text-muted">{listings.length} active listings match these filters.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SelectInput value={filters.city ?? ""} onChange={(event) => update({ city: event.target.value || undefined })}>
@@ -116,11 +119,16 @@ function SearchPage() {
         </SelectInput>
         <SelectInput value={filters.maxRent ?? ""} onChange={(event) => update({ maxRent: event.target.value || undefined })}>
           <option value="">Any budget</option>
-          {[8000, 12000, 15000, 20000, 30000, 50000].map((rent) => (
+          {[8000, 12000, 15000, 20000, 30000, 50000, 80000, 120000].map((rent) => (
             <option key={rent} value={String(rent)}>
               Up to ₹{rent.toLocaleString("en-IN")}
             </option>
           ))}
+        </SelectInput>
+        <SelectInput value={filters.listingKind ?? ""} onChange={(event) => update({ listingKind: event.target.value || undefined })}>
+          <option value="">Rooms and entire flats</option>
+          <option value="room">Spare rooms</option>
+          <option value="entire">Entire flats, owner listed</option>
         </SelectInput>
         <SelectInput value={filters.roomType ?? ""} onChange={(event) => update({ roomType: event.target.value || undefined })}>
           <option value="">Any room</option>

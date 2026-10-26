@@ -1,21 +1,25 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/shell";
 import { Button, Field, SelectInput, TextArea, TextInput } from "@/components/ui";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { saveListing } from "@/lib/roomsetu/account-api";
-import { AMENITIES, FURNISHED, GENDER_PREFS, OCCUPANT_PREFS, PROPERTY_TYPES, ROOM_TYPES } from "@/lib/roomsetu/catalog";
+import { AMENITIES, FACING, FURNISHED, GENDER_PREFS, OCCUPANT_PREFS, PROPERTY_TYPES, ROOM_TYPES, SUITABLE_FOR } from "@/lib/roomsetu/catalog";
 import { listCities } from "@/lib/roomsetu/public-api";
 import { CURATED_PHOTOS } from "@/lib/roomsetu/storage";
 
 export const Route = createFileRoute("/create-listing")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    kind: search.kind === "entire" ? ("entire" as const) : ("room" as const),
+  }),
   loader: () => listCities(),
   component: CreateListing,
 });
 
 function CreateListing() {
   const places = Route.useLoaderData();
+  const { kind } = Route.useSearch();
   const { user, isPending } = useCurrentUserState();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -24,14 +28,14 @@ function CreateListing() {
   const [form, setForm] = useState({
     title: "",
     propertyType: "apartment",
-    roomType: "private",
+    roomType: kind === "entire" ? "2bhk" : "private",
     address: "",
     localityId: "",
     pincode: "",
-    monthlyRent: "14000",
-    deposit: "28000",
+    monthlyRent: kind === "entire" ? "28000" : "14000",
+    deposit: kind === "entire" ? "84000" : "28000",
     availableFrom: "",
-    minStayMonths: "3",
+    minStayMonths: "11",
     maxStayMonths: "",
     furnished: "semi",
     genderPref: "any",
@@ -39,15 +43,34 @@ function CreateListing() {
     ageMax: "",
     occupantPref: "any",
     roommatePref: "",
-    occupants: "1",
+    occupants: kind === "entire" ? "0" : "1",
     description: "",
-    houseRules: "No parties. Quiet after 10:30 pm.",
+    houseRules: kind === "entire" ? "No structural changes. Rent is due by the 5th." : "No parties. Quiet after 10:30 pm.",
     guestPolicy: "Occasional guests with a day's notice",
-    amenities: ["wifi", "kitchen"] as string[],
-    photos: [CURATED_PHOTOS[0].url] as string[],
+    amenities: (kind === "entire" ? ["lift", "parking", "security"] : ["wifi", "kitchen"]) as string[],
+    photos: [kind === "entire" ? "/rooms/living.jpg" : CURATED_PHOTOS[0].url] as string[],
+    society: "",
+    builtUpSqft: kind === "entire" ? "1050" : "",
+    bathrooms: kind === "entire" ? "2" : "",
+    balconies: kind === "entire" ? "1" : "",
+    floor: "",
+    totalFloors: "",
+    facing: "east",
+    maintenance: kind === "entire" ? "3000" : "",
+    suitableFor: "family",
   });
 
   const localities = places.localities.filter((item) => item.cityId === cityId);
+  const entire = kind === "entire";
+  const bhkTypes = ROOM_TYPES.filter((item) => item.id === "studio" || item.id.endsWith("bhk"));
+
+  useEffect(() => {
+    setForm((current) => {
+      if (kind !== "entire") return current;
+      if (current.roomType.endsWith("bhk") || current.roomType === "studio") return current;
+      return { ...current, roomType: "2bhk" };
+    });
+  }, [kind]);
 
   function toggle(list: string[], id: string) {
     return list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
@@ -77,6 +100,21 @@ function CreateListing() {
             url,
             category: CURATED_PHOTOS.find((photo) => photo.url === url)?.category ?? "Bedroom",
           })),
+          listingKind: kind,
+          facts: entire
+            ? {
+                society: form.society,
+                builtUpSqft: form.builtUpSqft,
+                bathrooms: form.bathrooms,
+                balconies: form.balconies,
+                floor: form.floor,
+                totalFloors: form.totalFloors,
+                facing: form.facing,
+                maintenance: form.maintenance,
+                suitableFor: form.suitableFor,
+                postedBy: "owner",
+              }
+            : undefined,
         },
       });
       if (result.duplicate) toast.message("Published, and flagged as similar to another of your listings.");
@@ -91,8 +129,16 @@ function CreateListing() {
 
   return (
     <AppShell>
-      <h1 className="font-display text-4xl">List a room</h1>
-      <p className="mt-1 text-sm text-muted">Step {step + 1} of 3. Listing is free. A paid boost is optional after you publish.</p>
+      <h1 className="font-display text-4xl">{entire ? "List your flat" : "List a room"}</h1>
+      <p className="mt-1 max-w-2xl text-sm text-muted">
+        {entire
+          ? "For the owner of the whole home. Rent only, like a 99acres owner post — BHK, area, floor, and society. Not a sale, and not a broker listing. The street and your phone stay private."
+          : "Step " + (step + 1) + " of 3. A spare room in a home you already live in. Listing is free."}
+      </p>
+      <div className="mt-4 flex gap-2">
+        <button type="button" onClick={() => void navigate({ to: "/create-listing", search: { kind: "room" } })} className={`h-10 rounded-md border px-3 text-sm ${entire ? "border-line bg-surface" : "border-primary bg-primary-soft text-primary"}`}>Spare room</button>
+        <button type="button" onClick={() => void navigate({ to: "/create-listing", search: { kind: "entire" } })} className={`h-10 rounded-md border px-3 text-sm ${entire ? "border-primary bg-primary-soft text-primary" : "border-line bg-surface"}`}>Entire flat</button>
+      </div>
       {isPending ? <div className="mt-6 h-40 animate-pulse rounded-xl bg-line" /> : null}
       {!isPending && !user ? (
         <p className="mt-6 text-sm">
@@ -107,7 +153,7 @@ function CreateListing() {
           {step === 0 ? (
             <>
               <Field label="Title">
-                <TextInput required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Private room near a metro" />
+                <TextInput required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder={entire ? "2 BHK for rent in Koramangala" : "Private room near a metro"} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Property type">
@@ -115,9 +161,9 @@ function CreateListing() {
                     {PROPERTY_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </SelectInput>
                 </Field>
-                <Field label="Room type">
+                <Field label={entire ? "BHK" : "Room type"}>
                   <SelectInput value={form.roomType} onChange={(event) => setForm({ ...form, roomType: event.target.value })}>
-                    {ROOM_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                    {(entire ? bhkTypes : ROOM_TYPES).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </SelectInput>
                 </Field>
                 <Field label="City">
@@ -137,6 +183,11 @@ function CreateListing() {
                 <Field label="Pincode">
                   <TextInput value={form.pincode} onChange={(event) => setForm({ ...form, pincode: event.target.value })} />
                 </Field>
+                {entire ? (
+                  <Field label="Society / project" hint="The building name. Not the door number.">
+                    <TextInput value={form.society} onChange={(event) => setForm({ ...form, society: event.target.value })} placeholder="Prestige Lakeside" />
+                  </Field>
+                ) : null}
               </div>
             </>
           ) : null}
@@ -152,8 +203,27 @@ function CreateListing() {
                   {FURNISHED.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </SelectInput>
               </Field>
-              <Field label="Existing occupants"><TextInput inputMode="numeric" value={form.occupants} onChange={(event) => setForm({ ...form, occupants: event.target.value })} /></Field>
-              <Field label="Guest policy"><TextInput value={form.guestPolicy} onChange={(event) => setForm({ ...form, guestPolicy: event.target.value })} /></Field>
+              {entire ? (
+                <>
+                  <Field label="Built-up area (sq ft)"><TextInput inputMode="numeric" value={form.builtUpSqft} onChange={(event) => setForm({ ...form, builtUpSqft: event.target.value })} /></Field>
+                  <Field label="Bathrooms"><TextInput inputMode="numeric" value={form.bathrooms} onChange={(event) => setForm({ ...form, bathrooms: event.target.value })} /></Field>
+                  <Field label="Balconies"><TextInput inputMode="numeric" value={form.balconies} onChange={(event) => setForm({ ...form, balconies: event.target.value })} /></Field>
+                  <Field label="Floor"><TextInput inputMode="numeric" value={form.floor} onChange={(event) => setForm({ ...form, floor: event.target.value })} /></Field>
+                  <Field label="Total floors"><TextInput inputMode="numeric" value={form.totalFloors} onChange={(event) => setForm({ ...form, totalFloors: event.target.value })} /></Field>
+                  <Field label="Facing">
+                    <SelectInput value={form.facing} onChange={(event) => setForm({ ...form, facing: event.target.value })}>
+                      <option value="">Not specified</option>
+                      {FACING.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                    </SelectInput>
+                  </Field>
+                  <Field label="Maintenance / month"><TextInput inputMode="numeric" value={form.maintenance} onChange={(event) => setForm({ ...form, maintenance: event.target.value })} /></Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Existing occupants"><TextInput inputMode="numeric" value={form.occupants} onChange={(event) => setForm({ ...form, occupants: event.target.value })} /></Field>
+                  <Field label="Guest policy"><TextInput value={form.guestPolicy} onChange={(event) => setForm({ ...form, guestPolicy: event.target.value })} /></Field>
+                </>
+              )}
             </div>
           ) : null}
           {step === 2 ? (
@@ -164,17 +234,17 @@ function CreateListing() {
                     {GENDER_PREFS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </SelectInput>
                 </Field>
-                <Field label="Occupation preference">
-                  <SelectInput value={form.occupantPref} onChange={(event) => setForm({ ...form, occupantPref: event.target.value })}>
-                    {OCCUPANT_PREFS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                <Field label={entire ? "Preferred tenants" : "Occupation preference"}>
+                  <SelectInput value={entire ? form.suitableFor : form.occupantPref} onChange={(event) => setForm(entire ? { ...form, suitableFor: event.target.value } : { ...form, occupantPref: event.target.value })}>
+                    {(entire ? SUITABLE_FOR : OCCUPANT_PREFS).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </SelectInput>
                 </Field>
                 <Field label="Age from"><TextInput value={form.ageMin} onChange={(event) => setForm({ ...form, ageMin: event.target.value })} /></Field>
                 <Field label="Age to"><TextInput value={form.ageMax} onChange={(event) => setForm({ ...form, ageMax: event.target.value })} /></Field>
               </div>
-              <Field label="Roommate preference"><TextInput value={form.roommatePref} onChange={(event) => setForm({ ...form, roommatePref: event.target.value })} /></Field>
+              {entire ? null : <Field label="Roommate preference"><TextInput value={form.roommatePref} onChange={(event) => setForm({ ...form, roommatePref: event.target.value })} /></Field>}
               <Field label="Description"><TextArea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></Field>
-              <Field label="House rules"><TextArea value={form.houseRules} onChange={(event) => setForm({ ...form, houseRules: event.target.value })} /></Field>
+              <Field label={entire ? "What a tenant should know" : "House rules"}><TextArea value={form.houseRules} onChange={(event) => setForm({ ...form, houseRules: event.target.value })} /></Field>
               <fieldset>
                 <legend className="mb-2 text-sm font-medium">Amenities</legend>
                 <div className="flex flex-wrap gap-2">

@@ -5,6 +5,7 @@ import { AppShell } from "@/components/shell";
 import { Badge, Button, Empty, Panel } from "@/components/ui";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { myListings, myMatches, myOverview, setListingStatus } from "@/lib/roomsetu/account-api";
+import { ownerBuddyInbox } from "@/lib/roomsetu/buddy-api";
 import { inr } from "@/lib/roomsetu/catalog";
 
 export const Route = createFileRoute("/dashboard")({
@@ -16,11 +17,13 @@ function DashboardPage() {
   const [overview, setOverview] = useState<Awaited<ReturnType<typeof myOverview>> | null>(null);
   const [listings, setListings] = useState<Awaited<ReturnType<typeof myListings>>>([]);
   const [matches, setMatches] = useState<Awaited<ReturnType<typeof myMatches>> | null>(null);
+  const [inbox, setInbox] = useState<Awaited<ReturnType<typeof ownerBuddyInbox>>>([]);
 
   function load() {
     void myOverview().then(setOverview).catch(() => undefined);
     void myListings().then(setListings).catch(() => undefined);
     void myMatches().then(setMatches).catch(() => undefined);
+    void ownerBuddyInbox().then(setInbox).catch(() => undefined);
   }
 
   useEffect(() => {
@@ -58,12 +61,31 @@ function DashboardPage() {
           </div>
           <p className="mt-2 text-xs text-faint">Listed rent is what you are asking. RoomSetu does not collect it. Boosts are a separate Razorpay charge.</p>
           <div className="mt-6 flex flex-wrap gap-2">
-            <Link to="/create-listing" className="inline-flex h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg">Create listing</Link>
+            <Link to="/create-listing" search={{ kind: "room" }} className="inline-flex h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg">Create listing</Link>
+            <Link to="/create-listing" search={{ kind: "entire" }} className="inline-flex h-11 items-center rounded-md border border-line px-4 text-sm">List a whole flat</Link>
             <Link to="/create-room-wanted" className="inline-flex h-11 items-center rounded-md border border-line px-4 text-sm">Room wanted</Link>
             <Link to="/matches" className="inline-flex h-11 items-center rounded-md border border-line px-4 text-sm">Matches</Link>
+            <Link to="/buddies" className="inline-flex h-11 items-center rounded-md border border-line px-4 text-sm">Buddy up</Link>
             <Link to="/applications" className="inline-flex h-11 items-center rounded-md border border-line px-4 text-sm">Applications</Link>
             <Link to="/billing" className="inline-flex h-11 items-center rounded-md border border-line px-4 text-sm">Billing</Link>
           </div>
+          <section className="mt-8">
+            <h2 className="font-display text-3xl">Groups for your flats</h2>
+            <div className="mt-3 grid gap-3">
+              {inbox.map((item) => (
+                <Link key={item.id} to="/listing/$id" params={{ id: item.listingId }} className="rounded-xl border border-line bg-surface p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge>{item.status === "accepted" ? "Accepted" : "Proposal"}</Badge>
+                    {item.isDemo ? <Badge tone="warn">Demo</Badge> : null}
+                  </div>
+                  <p className="mt-1 font-medium">{item.title}</p>
+                  <p className="text-sm text-muted">{item.names.join(", ")} · {item.localityName} · {inr(item.monthlyRent)}</p>
+                  <p className="mt-1 text-sm">{item.note}</p>
+                </Link>
+              ))}
+              {inbox.length === 0 ? <p className="text-sm text-muted">When a full group proposes on one of your flats, it shows up here.</p> : null}
+            </div>
+          </section>
           <section className="mt-8">
             <h2 className="font-display text-3xl">Your listings</h2>
             <div className="mt-3 grid gap-3">
