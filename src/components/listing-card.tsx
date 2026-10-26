@@ -16,6 +16,7 @@ export function ListingCard({ listing }: { listing: Card }) {
           {listing.verificationStatus === "verified" ? <Badge tone="good">Verified</Badge> : null}
           {listing.isDemo ? <Badge tone="warn">Demo</Badge> : null}
           {listing.featured ? <Badge>Featured</Badge> : null}
+          {listing.listingKind === "entire" ? <Badge>Entire flat · Owner</Badge> : null}
         </div>
         <h3 className="font-medium leading-snug group-hover:text-primary">{listing.title}</h3>
         <p className="text-sm text-muted">

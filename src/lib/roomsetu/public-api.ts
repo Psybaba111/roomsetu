@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
+import { parseFacts, type PropertyFacts } from "@/lib/roomsetu/catalog";
 
 function str(v: unknown, max = 200) {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
@@ -24,6 +25,7 @@ export type SearchInput = {
   lat: number | null;
   lng: number | null;
   q: string;
+  listingKind: string;
 };
 
 export type ListingCard = {
@@ -47,6 +49,7 @@ export type ListingCard = {
   hostName: string;
   lat: number | null;
   lng: number | null;
+  listingKind: string;
 };
 
 function card(row: Record<string, unknown>): ListingCard {
@@ -71,6 +74,7 @@ function card(row: Record<string, unknown>): ListingCard {
     hostName: String(row.hostName ?? "Host"),
     lat: row.lat == null ? null : Math.round(Number(row.lat) * 100) / 100,
     lng: row.lng == null ? null : Math.round(Number(row.lng) * 100) / 100,
+    listingKind: String(row.listingKind ?? "room"),
   };
 }
 
@@ -83,7 +87,7 @@ const CARD_SQL = `
   (l.featured and (l.featured_until is null or l.featured_until > now())) as featured,
   l.cover_image as "coverImage",
   l.quality_score as "qualityScore", coalesce(p.full_name, 'Host') as "hostName",
-  l.lat, l.lng
+  l.lat, l.lng, l.listing_kind as "listingKind"
 `;
 
 export const listCities = createServerFn({ method: "GET" }).handler(async () => {
@@ -114,6 +118,7 @@ export const searchListings = createServerFn({ method: "GET" })
       lat: numOrNull(o.lat),
       lng: numOrNull(o.lng),
       q: str(o.q, 80),
+      listingKind: o.listingKind === "entire" || o.listingKind === "room" ? o.listingKind : "",
     };
   })
   .handler(async ({ data }) => {
@@ -128,6 +133,7 @@ export const searchListings = createServerFn({ method: "GET" })
     if (data.locality) add("l.locality_id = $#", data.locality);
     if (data.maxRent) add("l.monthly_rent <= $#", data.maxRent);
     if (data.roomType) add("l.room_type = $#", data.roomType);
+    if (data.listingKind) add("l.listing_kind = $#", data.listingKind);
     if (data.furnished) add("l.furnished = $#", data.furnished);
     if (data.gender) add("l.gender_pref = $#", data.gender);
     if (data.food === "yes") clauses.push("l.food_available = true");
@@ -192,7 +198,7 @@ export const getListing = createServerFn({ method: "GET" })
         l.verification_status as "verificationStatus", l.is_demo as "isDemo",
         (l.featured and (l.featured_until is null or l.featured_until > now())) as featured,
         l.quality_score as "qualityScore", l.views, l.plan, l.status, l.cover_image as "coverImage",
-        l.owner_id as "ownerId", l.lat, l.lng,
+        l.owner_id as "ownerId", l.lat, l.lng, l.listing_kind as "listingKind", l.property_facts as "propertyFacts",
         c.id as "cityId", c.name as "cityName", loc.name as "localityName",
         p.full_name as "hostName", p.occupation as "hostOccupation", p.age as "hostAge",
         p.gender as "hostGender", p.verification_status as "hostVerification",
@@ -262,6 +268,8 @@ export const getListing = createServerFn({ method: "GET" })
           ? ""
           : String(row.hostAbout ?? ""),
       hostDemo: Boolean(row.hostDemo),
+      listingKind: String(row.listingKind ?? "room"),
+      facts: parseFacts(row.propertyFacts) satisfies PropertyFacts,
       photos,
       amenities,
     };

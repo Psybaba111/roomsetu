@@ -24,11 +24,16 @@ function RoomWantedPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-4xl">People looking for a room</h1>
-          <p className="mt-1 text-sm text-muted">The other side of the marketplace. Demo posts are marked.</p>
+          <p className="mt-1 text-sm text-muted">The other side of the marketplace. Name a locality if you want to buddy up for a whole flat. Demo posts are marked.</p>
         </div>
-        <Link to="/create-room-wanted" className="inline-flex h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg">
-          Post a request
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/buddies" className="inline-flex h-11 items-center rounded-md border border-line px-4 text-sm font-medium">
+            Buddy up
+          </Link>
+          <Link to="/create-room-wanted" className="inline-flex h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg">
+            Post a request
+          </Link>
+        </div>
       </div>
       <form className="mt-4 max-w-xs" method="get">
         <SelectInput value={city} onChange={(event) => void navigate({ to: "/room-wanted", search: { city: event.target.value } })}>

@@ -51,7 +51,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link to="/room-wanted" className="text-muted hover:text-ink">
               Room wanted
             </Link>
-            <Link to="/create-listing" className="text-muted hover:text-ink">
+            <Link to="/buddies" className="text-muted hover:text-ink">
+              Buddy up
+            </Link>
+            <Link to="/create-listing" search={{ kind: "room" }} className="text-muted hover:text-ink">
               List a room
             </Link>
             <Link to="/dashboard" className="text-muted hover:text-ink">

@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/shell";
 import { AreaMap } from "@/components/area-map";
+import { BuddyPanel } from "@/components/buddy-panel";
 import { Badge, Button, Panel, TextArea } from "@/components/ui";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { formatDate, inr, labelOf, PROPERTY_TYPES, ROOM_TYPES, FURNISHED, REPORT_CATEGORIES } from "@/lib/roomsetu/catalog";
+import { formatDate, inr, labelOf, PROPERTY_TYPES, ROOM_TYPES, FURNISHED, FACING, SUITABLE_FOR, REPORT_CATEGORIES } from "@/lib/roomsetu/catalog";
 import { applyToListing, blockUser, fileReport, matchForListing, savedIds, startConversation, toggleSaved } from "@/lib/roomsetu/account-api";
 import { getListing, recordView } from "@/lib/roomsetu/public-api";
 
@@ -82,6 +83,7 @@ function ListingPage() {
             <Badge>{labelOf(PROPERTY_TYPES, listing.propertyType)}</Badge>
             <Badge>{labelOf(ROOM_TYPES, listing.roomType)}</Badge>
             <Badge>{labelOf(FURNISHED, listing.furnished)}</Badge>
+            {listing.listingKind === "entire" ? <Badge>Posted by owner</Badge> : null}
           </div>
           <h1 className="mt-4 font-display text-4xl">{listing.title}</h1>
           <p className="mt-1 text-muted">
@@ -92,12 +94,26 @@ function ListingPage() {
             {[
               ["Rent", inr(listing.monthlyRent)],
               ["Deposit", inr(listing.deposit)],
+              ...(listing.listingKind === "entire" && listing.facts.maintenance ? [["Maintenance", `${inr(listing.facts.maintenance)} / month`] as [string, string]] : []),
               ["Available", formatDate(listing.availableFrom)],
               ["Minimum stay", `${listing.minStay} months`],
-              ["Occupants now", String(listing.occupants)],
+              ...(listing.listingKind === "entire"
+                ? [
+                    ...(listing.facts.society ? [["Society", listing.facts.society] as [string, string]] : []),
+                    ...(listing.facts.builtUpSqft ? [["Built-up", `${listing.facts.builtUpSqft} sq ft`] as [string, string]] : []),
+                    ...(listing.facts.bathrooms ? [["Bathrooms", String(listing.facts.bathrooms)] as [string, string]] : []),
+                    ...(listing.facts.balconies != null ? [["Balconies", String(listing.facts.balconies)] as [string, string]] : []),
+                    ...(listing.facts.floor ? [["Floor", listing.facts.totalFloors ? `${listing.facts.floor} of ${listing.facts.totalFloors}` : String(listing.facts.floor)] as [string, string]] : []),
+                    ...(listing.facts.facing ? [["Facing", labelOf(FACING, listing.facts.facing)] as [string, string]] : []),
+                    ["Suitable for", labelOf(SUITABLE_FOR, listing.facts.suitableFor)],
+                    ["Sale", "Not listed. Rent only."],
+                  ]
+                : [
+                    ["Occupants now", String(listing.occupants)] as [string, string],
+                    ["Guests", listing.guestPolicy] as [string, string],
+                  ]),
               ["Gender", listing.genderPref],
-              ["Looking for", listing.occupantPref],
-              ["Guests", listing.guestPolicy],
+              ["Looking for", listing.listingKind === "entire" ? labelOf(SUITABLE_FOR, listing.facts.suitableFor) : listing.occupantPref],
               ["Food", listing.foodAvailable ? "Available" : "Not included"],
               ["Smoking", listing.smokingAllowed ? "Allowed" : "Not allowed"],
               ["Pets", listing.petsAllowed ? "Allowed" : "Not allowed"],
@@ -119,6 +135,7 @@ function ListingPage() {
           <h2 className="mt-8 text-lg font-medium">House rules</h2>
           <p className="mt-2 text-sm text-muted">{listing.houseRules}</p>
           {listing.roommatePref ? <p className="mt-2 text-sm">Roommate note: {listing.roommatePref}</p> : null}
+          <BuddyPanel listingId={listing.id} />
           <Panel className="mt-6">
             <h2 className="font-medium">Where</h2>
             <p className="mt-1 text-sm text-muted">

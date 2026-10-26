@@ -19,6 +19,7 @@ const blank: SearchInput = {
   lat: null,
   lng: null,
   q: "",
+  listingKind: "",
 };
 
 export const Route = createFileRoute("/")({
@@ -42,13 +43,18 @@ function Home() {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (intent === "offering") {
-      void navigate({ to: "/create-listing" });
+    if (intent === "offering" || intent === "offering-flat") {
+      void navigate({ to: "/create-listing", search: { kind: intent === "offering-flat" ? "entire" : "room" } });
       return;
     }
     void navigate({
       to: "/search",
-      search: { city, maxRent: budget, moveIn },
+      search: {
+        city,
+        maxRent: budget,
+        moveIn,
+        listingKind: intent === "looking-flat" ? "entire" : undefined,
+      },
     });
   }
 
@@ -61,7 +67,7 @@ function Home() {
             Find a room. Find a flatmate. Find your place.
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted">
-            RoomSetu connects people with a spare room to people who need one. No travel packages. No bundled stays. Just a room, a budget, and someone you can message inside the app.
+            RoomSetu is for spare rooms and for owners renting out the whole flat. No sale ads, no brokers, no travel packages. Phone numbers stay off the listing.
           </p>
         </div>
         <img
@@ -87,7 +93,9 @@ function Home() {
             <span className="mb-1 block text-sm font-medium">I am</span>
             <SelectInput value={intent} onChange={(event) => setIntent(event.target.value)}>
               <option value="looking">Looking for a room</option>
-              <option value="offering">Offering a room</option>
+              <option value="looking-flat">Looking for an entire flat</option>
+              <option value="offering">Offering a spare room</option>
+              <option value="offering-flat">I own a flat to rent</option>
             </SelectInput>
           </label>
           <label className="block">
@@ -101,7 +109,7 @@ function Home() {
         </div>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <Button type="submit" className="sm:min-w-40">
-            {intent === "offering" ? "List your room" : "Find rooms"}
+            {intent === "offering" ? "List your room" : intent === "offering-flat" ? "List your flat" : intent === "looking-flat" ? "Find flats" : "Find rooms"}
           </Button>
           <Link to="/create-room-wanted" className="inline-flex h-11 items-center justify-center rounded-md border border-line px-4 text-sm font-medium">
             I need a room
@@ -155,12 +163,19 @@ function Home() {
         ))}
       </section>
 
-      <section className="mt-12 grid gap-4 md:grid-cols-2">
+      <section className="mt-12 grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-line bg-primary p-5 text-primary-fg">
           <h2 className="font-display text-3xl">Have an unused room?</h2>
-          <p className="mt-2 text-sm text-primary-fg/80">List it free. Keep your phone number private until you choose otherwise.</p>
-          <Link to="/create-listing" className="mt-4 inline-flex h-11 items-center rounded-md bg-surface px-4 text-sm font-medium text-ink">
+          <p className="mt-2 text-sm text-primary-fg/80">List a spare room free. Your phone number stays private.</p>
+          <Link to="/create-listing" search={{ kind: "room" }} className="mt-4 inline-flex h-11 items-center rounded-md bg-surface px-4 text-sm font-medium text-ink">
             List your room
+          </Link>
+        </article>
+        <article className="rounded-xl border border-line bg-surface p-5">
+          <h2 className="font-display text-3xl">Own a flat?</h2>
+          <p className="mt-2 text-sm text-muted">List the whole home for rent. For a 3 BHK, people already searching that locality can buddy up and come to you as one group.</p>
+          <Link to="/create-listing" search={{ kind: "entire" }} className="mt-4 inline-flex h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg">
+            List the whole flat
           </Link>
         </article>
         <article className="overflow-hidden rounded-xl border border-line bg-surface">

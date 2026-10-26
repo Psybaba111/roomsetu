@@ -6,6 +6,7 @@ export const ROOM_TYPES = [
   { id: "1bhk", label: "1 BHK" },
   { id: "2bhk", label: "2 BHK" },
   { id: "3bhk", label: "3 BHK" },
+  { id: "4bhk", label: "4 BHK" },
   { id: "pg_bed", label: "PG bed" },
   { id: "other", label: "Other" },
 ] as const;
@@ -36,6 +37,11 @@ export const AMENITIES = [
   { id: "attached_bath", label: "Attached bathroom" },
   { id: "balcony", label: "Balcony" },
   { id: "food", label: "Food available" },
+  { id: "security", label: "Security" },
+  { id: "gas", label: "Piped gas" },
+  { id: "gym", label: "Gym" },
+  { id: "club", label: "Clubhouse" },
+  { id: "park", label: "Park" },
 ] as const;
 
 export const GENDERS = [
@@ -55,6 +61,87 @@ export const OCCUPANT_PREFS = [
   { id: "professional", label: "Working professional" },
   { id: "student", label: "Student" },
 ] as const;
+
+export const FACING = [
+  { id: "east", label: "East" },
+  { id: "west", label: "West" },
+  { id: "north", label: "North" },
+  { id: "south", label: "South" },
+  { id: "north_east", label: "North-east" },
+  { id: "north_west", label: "North-west" },
+  { id: "south_east", label: "South-east" },
+  { id: "south_west", label: "South-west" },
+] as const;
+
+export const SUITABLE_FOR = [
+  { id: "family", label: "Family" },
+  { id: "bachelors", label: "Bachelors" },
+  { id: "anyone", label: "Anyone" },
+] as const;
+
+export type PropertyFacts = {
+  builtUpSqft: number | null;
+  bathrooms: number | null;
+  balconies: number | null;
+  floor: number | null;
+  totalFloors: number | null;
+  facing: string;
+  society: string;
+  maintenance: number | null;
+  suitableFor: string;
+  postedBy: "owner";
+};
+
+export function emptyFacts(): PropertyFacts {
+  return {
+    builtUpSqft: null,
+    bathrooms: null,
+    balconies: null,
+    floor: null,
+    totalFloors: null,
+    facing: "",
+    society: "",
+    maintenance: null,
+    suitableFor: "anyone",
+    postedBy: "owner",
+  };
+}
+
+function factNum(value: unknown, max: number) {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.min(max, Math.round(n));
+}
+
+export function parseFacts(input: unknown): PropertyFacts {
+  let raw: Record<string, unknown> = {};
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input) as unknown;
+      if (parsed && typeof parsed === "object") raw = parsed as Record<string, unknown>;
+    } catch {
+      raw = {};
+    }
+  } else if (input && typeof input === "object") {
+    raw = input as Record<string, unknown>;
+  }
+  const facing = typeof raw.facing === "string" ? raw.facing : "";
+  const suitable = typeof raw.suitableFor === "string" ? raw.suitableFor : "";
+  const society = typeof raw.society === "string" ? raw.society.trim().slice(0, 80) : "";
+  return {
+    builtUpSqft: factNum(raw.builtUpSqft, 20000),
+    bathrooms: factNum(raw.bathrooms, 10),
+    balconies: factNum(raw.balconies, 8),
+    floor: factNum(raw.floor, 80),
+    totalFloors: factNum(raw.totalFloors, 80),
+    facing: FACING.some((item) => item.id === facing) ? facing : "",
+    society,
+    maintenance: factNum(raw.maintenance, 100000),
+    suitableFor: SUITABLE_FOR.some((item) => item.id === suitable) ? suitable : "anyone",
+    postedBy: "owner",
+  };
+}
 
 export const USER_TYPES = [
   { id: "looking", label: "Looking for a room" },
